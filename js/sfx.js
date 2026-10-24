@@ -440,10 +440,19 @@ const Sfx = (() => {
     return b;
   }
 
+  // 手机浏览器只在点按、按键的那一刻允许出声；iOS 切到后台或来电后会变成 suspended / interrupted，要下一次点按再叫醒
+  function wake() {
+    if (ac.state === 'running' || !ac.resume) return;
+    const p = ac.resume();
+    if (p && p.catch) p.catch(() => {});
+  }
+
   function init() {
-    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    if (ac) { wake(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    // iPhone 开着静音键时，网页音频默认跟着静音；设成 playback 后和网页里的视频一样照常出声（iOS 16.4 起支持）
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* 不支持就用默认 */ }
     ac = new AC();
     // 总线：切掉听不见的超低频 → 压缩（把同时响的声音粘在一起）→ 削一点刺耳的极高频 → 限幅（叠太多时不削波）→ 总音量
     const hp = ac.createBiquadFilter(), comp = ac.createDynamicsCompressor(), shelf = ac.createBiquadFilter(), lim = ac.createDynamicsCompressor(), master = ac.createGain();
@@ -466,7 +475,16 @@ const Sfx = (() => {
     shelf.connect(lim);
     lim.connect(master);
     master.connect(ac.destination);
+    // 老版 iOS 要在手势里真的放一次声音才解锁：放一帧空白
+    const s = ac.createBufferSource();
+    s.buffer = ac.createBuffer(1, 1, ac.sampleRate);
+    s.connect(ac.destination);
+    s.start(0);
+    wake();
   }
+  // 页面上任何一次点按或按键都试着开声音，不只是“开始游戏”：看广告开局要等广告放完才开局，那时已经不在手势里了
+  ['pointerup', 'touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, init, true));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ac) wake(); });
 
   // pan：-1 左 ~ 1 右，按画面位置传进来；不传就在正中
   function play(name, arg, pan) {
