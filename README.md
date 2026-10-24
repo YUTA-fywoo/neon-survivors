@@ -2,7 +2,7 @@
 
 用 Claude Code 做的网页小游戏原型，手机和电脑都能玩。太空主题的割草类（类《吸血鬼幸存者》）玩法，加上模拟激励视频广告位和本机埋点面板，用来演示“做一个小游戏 → 看数据 → 按试玩反馈改”的完整流程。
 
-- 在线试玩：（发布后补）
+- 在线试玩：https://yuta-fywoo.github.io/neon-survivors/ （手机、电脑都能直接打开；国内网络有时较慢）
 - 迭代记录：[docs/iteration-log.md](docs/iteration-log.md)
 
 ## 玩法
