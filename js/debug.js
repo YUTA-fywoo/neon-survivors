@@ -213,6 +213,13 @@ const Debug = (() => {
     toggle(true);
   };
   $('dbg-bot-clear').onclick = () => { Bot.clear(); render(); };
+  $('dbg-reset').onclick = () => {
+    if (Bot.isBusy()) return;   // Bot 跑完会把存档还原回去，跑的时候不让重置
+    if (!confirm('重置存档？金币、永久强化和战绩（局数、最佳存活、通关次数）都会清零，不能恢复。\n埋点和 Bot 记录不受影响。')) return;
+    Save.reset();
+    if (Game.state === 'menu') UI.showMenu(true);
+    UI.toast('存档已重置');
+  };
   $('dbg-export').onclick = () => {
     const blob = new Blob([JSON.stringify(Analytics.all(), null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
