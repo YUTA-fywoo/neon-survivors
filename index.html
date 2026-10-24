@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="霓虹幸存者：用 Claude Code 做的割草 roguelike H5 原型，含模拟激励视频广告位和本地埋点漏斗面板。">
+<title>霓虹幸存者 · H5 原型</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" hidden>
+  <div class="xpline"><i id="xp-fill"></i></div>
+  <div class="hud-row">
+    <div class="hud-l">
+      <div class="hp" id="hp"><span class="k">HP</span><span class="segs"><i id="hp-ghost"></i><i id="hp-fill"></i></span><b id="hp-text">100</b></div>
+      <div class="lv" id="lv"><span class="k">LV</span><b id="lv-text">1</b></div>
+      <div class="fever" id="fever"><span class="k">狂热</span><span class="fbar"><i id="fever-fill"></i></span></div>
+      <div class="chips">
+        <span class="chip buff" id="buff" hidden><span class="k">火力全开</span><b id="buff-t">40</b></span>
+        <span class="chip threat" id="threat" hidden><span class="k">敌军</span><b id="threat-text">+0%</b></span>
+      </div>
+    </div>
+    <div class="hud-c">
+      <div id="timer">00:00</div>
+      <div class="wave"><span id="wave-text">第 1 波</span><span id="phase-text" class="ph">蓄力</span></div>
+      <div class="wavebar"><i id="wave-fill"></i><span class="mk m1"></span><span class="mk m2"></span></div>
+    </div>
+    <div class="hud-r">
+      <button id="btn-pause" class="hud-btn" aria-label="暂停" data-icon="pause"></button>
+      <div class="kills"><span class="k">击杀</span><b id="kill-text">0</b></div>
+      <div id="combo" class="combo"><b id="combo-n"></b><span>连杀</span></div>
+    </div>
+  </div>
+  <div id="boss-bar" hidden><div class="bb-head"><span>虚空核心</span><span class="k" id="boss-k">阶段 1/3</span></div><div class="track"><i id="boss-fill"></i><b class="tick" style="left:33%"></b><b class="tick" style="left:66%"></b></div></div>
+  <button id="btn-skill" class="skill-btn empty" aria-label="释放主动技能">
+    <span class="sk-orb"><i class="sk-ring"></i><i class="sk-wave"></i><span class="sk-ico" id="skill-ico"></span></span>
+    <span class="sk-label"><b id="skill-name">技能槽</b><small id="skill-hint">击落补给飞船获得</small></span>
+    <kbd>空格</kbd>
+  </button>
+  <button id="btn-drop" class="drop-card" hidden>
+    <span class="dc-ico" id="drop-ico"></span>
+    <span class="dc-txt"><span class="dc-k">广告空投 · 限时</span><b id="drop-name"></b><small id="drop-desc"></small></span>
+    <span class="dc-go" id="drop-go"></span>
+    <span class="dc-timer"><i id="drop-fill"></i></span>
+  </button>
+</div>
+<div id="fxl" aria-hidden="true"></div>
+<div id="keyhint" aria-hidden="true"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span><span><kbd>空格</kbd> 释放技能</span><span><kbd>Esc</kbd> 暂停</span></div>
+
+<div id="banner" aria-hidden="true"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<section id="scr-menu" class="screen menu" hidden>
+  <div class="menu-inner">
+    <p class="meta"><span>H5 原型</span><span>割草 Roguelike</span><span>v<span id="ver"></span></span></p>
+    <h1 class="title" data-text="霓虹幸存者">霓虹幸存者</h1>
+    <p class="howto" id="howto">拖动屏幕移动，武器自动开火。撑过 6 波，击败虚空核心。</p>
+    <button id="btn-start" class="btn primary big start"><span>开始游戏</span><kbd>ENTER</kbd></button>
+    <button id="btn-boost" class="btn ad boost"></button>
+    <p class="menu-stats" id="menu-stats"></p>
+    <div class="shop frame">
+      <div class="shop-head"><span>永久强化</span><span class="coins" id="coin-text">0</span></div>
+      <div id="shop-list"></div>
+    </div>
+    <div class="row">
+      <button class="btn ghost small" data-open-debug><i data-icon="chart"></i>埋点面板</button>
+      <button class="btn ghost small" id="btn-mute-menu"></button>
+    </div>
+    <p class="disclaimer">演示作品 · 广告为模拟，未接入真实广告 SDK · 埋点只存在本机浏览器<br>电脑：WASD / 方向键移动，空格或 E 释放技能，F 领取广告空投，Esc 暂停，` 打开埋点面板</p>
+  </div>
+</section>
+
+<section id="scr-levelup" class="screen modal" hidden>
+  <div class="panel frame wide">
+    <p class="eyebrow"><span>升级</span><span id="lu-sub"></span></p>
+    <h2 id="lu-title">选择 1 项强化</h2>
+    <div id="lu-cards" class="cards"></div>
+    <button id="btn-takeall" class="btn ad hero"></button>
+    <button id="btn-reroll" class="btn ad soft"></button>
+  </div>
+</section>
+
+<section id="scr-chest" class="screen modal" hidden>
+  <div class="panel frame gacha" id="ch-panel">
+    <p class="eyebrow"><span>宝箱</span><span id="ch-sub"></span></p>
+    <h2 id="ch-title">开箱中</h2>
+    <div class="gacha-stage">
+      <div id="ch-reels" class="reels"></div>
+      <div id="ch-items" class="gcards"></div>
+    </div>
+    <p id="ch-tip" class="gacha-tip">点击任意处跳过</p>
+    <button id="btn-chest-ad" class="btn ad"></button>
+    <button id="btn-chest-ok" class="btn primary big">收下</button>
+  </div>
+</section>
+
+<section id="scr-revive" class="screen modal" hidden>
+  <div class="panel frame">
+    <p class="eyebrow danger"><span>信号中断</span></p>
+    <h2>你被击倒了</h2>
+    <div class="countdown"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="44"/><circle id="rv-ring" class="arc" cx="50" cy="50" r="44"/></svg><b id="rv-count">8</b></div>
+    <p class="note" id="rv-info"></p>
+    <div class="rv-prog"><div class="rv-track"><i id="rv-prog"></i></div><p id="rv-near"></p></div>
+    <ul class="perks" id="rv-perks"></ul>
+    <button id="btn-revive" class="btn ad big"></button>
+    <p class="note">每局 1 次</p>
+    <button id="btn-giveup" class="btn ghost">放弃</button>
+  </div>
+</section>
+
+<section id="scr-result" class="screen modal" hidden>
+  <div class="panel frame">
+    <p class="eyebrow" id="rs-sub"></p>
+    <h2 id="rs-title">本局结束</h2>
+    <dl class="ledger" id="rs-ledger"></dl>
+    <div class="multi" id="multi"><div class="mbar" id="mbar"></div><i class="mptr" id="mptr"></i></div>
+    <button id="btn-double" class="btn ad big"></button>
+    <div class="row">
+      <button id="btn-again" class="btn primary">再来一局</button>
+      <button id="btn-home" class="btn ghost">返回主页</button>
+    </div>
+    <button class="btn ghost small link" data-open-debug><i data-icon="chart"></i>看这局的埋点</button>
+  </div>
+</section>
+
+<section id="scr-pause" class="screen modal" hidden>
+  <div class="panel frame">
+    <p class="eyebrow"><span>暂停</span></p>
+    <h2>当前构筑</h2>
+    <ul id="ps-build" class="build"></ul>
+    <button id="btn-resume" class="btn primary big">继续</button>
+    <div class="row">
+      <button id="btn-restart" class="btn ghost">重新开始</button>
+      <button id="btn-quit" class="btn ghost">返回主页</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost small" data-open-debug><i data-icon="chart"></i>埋点面板</button>
+      <button class="btn ghost small" id="btn-mute"></button>
+    </div>
+  </div>
+</section>
+
+<section id="scr-ad" class="screen ad-screen" hidden>
+  <div class="ad-top">
+    <span class="ad-tag">广告 · 演示</span>
+    <span id="ad-count">5 秒后可获得奖励</span>
+    <span class="ad-timer"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="46"/><circle id="ad-ring" class="arc" cx="50" cy="50" r="46"/></svg><b id="ad-sec">5</b></span>
+    <button id="ad-close" class="ad-close">跳过</button>
+  </div>
+  <div class="ad-creative">
+    <div class="ad-shapes" aria-hidden="true"><i></i><i></i><i></i></div>
+    <p class="ad-title">激励视频广告位</p>
+    <p class="ad-desc">这里模拟一条 <span id="ad-len">5</span> 秒的激励视频，未接入真实广告 SDK。<br>上线时由广告聚合 SDK 拉取并填充素材。</p>
+    <p class="ad-reward"><span>看完领取</span><b id="ad-reward"></b></p>
+    <p class="ad-place">广告位 <b id="ad-place">复活</b></p>
+  </div>
+  <button id="ad-claim" class="btn primary big" hidden>领取奖励</button>
+  <div class="ad-progress"><div id="ad-bar"></div></div>
+  <div id="ad-confirm" class="ad-confirm" hidden>
+    <p>现在关闭将无法获得奖励</p>
+    <div class="row">
+      <button id="ad-keep" class="btn primary">继续观看</button>
+      <button id="ad-quit" class="btn ghost">放弃奖励</button>
+    </div>
+  </div>
+</section>
+
+<aside id="debug" hidden aria-label="埋点面板">
+  <header>
+    <h2>埋点面板<small>只读本机数据</small></h2>
+    <button id="dbg-close" class="hud-btn" aria-label="关闭" data-icon="close"></button>
+  </header>
+  <div class="dbg-filter">
+    <label>版本 <select id="dbg-ver"></select></label>
+    <span class="note">快捷键 ` 或 F2</span>
+  </div>
+  <div id="dbg-body"></div>
+  <h3>调试工具</h3>
+  <div class="tools">
+    <label>模拟广告填充率
+      <select id="dbg-fill"><option value="1">100%</option><option value="0.7">70%</option><option value="0">0%（无填充）</option></select>
+    </label>
+    <label>模拟广告时长
+      <select id="dbg-dur"><option value="5">5 秒</option><option value="15">15 秒</option><option value="30">30 秒</option></select>
+    </label>
+    <label>无敌模式 <input type="checkbox" id="dbg-god"></label>
+    <div class="row">
+      <button class="btn small" id="dbg-boss">跳到 Boss</button>
+      <button class="btn small" id="dbg-lv">升 1 级</button>
+    </div>
+    <div class="row">
+      <button class="btn small" id="dbg-bot">Bot 试玩 5 局</button>
+      <button class="btn small" id="dbg-bot-ads">Bot 试玩 5 局（全看广告）</button>
+    </div>
+    <div class="row">
+      <button class="btn small" id="dbg-bot-clear">清空 Bot 记录</button>
+    </div>
+    <div class="row">
+      <button class="btn small" id="dbg-export">导出 JSON</button>
+      <button class="btn small" id="dbg-clear">清空埋点</button>
+    </div>
+    <p class="note">用过无敌、跳关、升级的局和 Bot 的局都会打上 cheat 标记，不计入漏斗和死亡统计。Bot 默认不看广告、不复活；“全看广告”模式每个广告位都看，用来对比广告奖励加上威胁度以后强了多少。跑完会还原存档。</p>
+  </div>
+</aside>
+
+<script src="js/config.js"></script>
+<script src="js/save.js"></script>
+<script src="js/analytics.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/ads.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/art.js"></script>
+<script src="js/game.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/debug.js"></script>
+</body>
+</html>
