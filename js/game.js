@@ -12,6 +12,7 @@ const Game = (() => {
   const rand = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const round1 = v => Math.round(v * 10) / 10;
+  const panAt = x => (x - S.p.x) / 600;   // 音效的左右声像：按离主角的横向距离，大约半屏到最左或最右
 
   let W = 0, H = 0, DPR = 1, ZOOM = 1, zoomMul = 1, zoomEff = 1;
   let camX = 0, camY = 0;
@@ -1122,7 +1123,7 @@ const Game = (() => {
       glint(hx, hy, 20, 0.08, 'void', 0.9);
       sparks(hx, hy, a + Math.PI, 0.8, 2, 240, COL.void, 7);
     }
-    if (S.t > (e.shTextT || 0)) { e.shTextT = S.t + 0.5; text(hx, hy, '护盾', false); Sfx.play('hit'); }
+    if (S.t > (e.shTextT || 0)) { e.shTextT = S.t + 0.5; text(hx, hy, '护盾', false); Sfx.play('hit', 0, panAt(hx)); }
   }
 
   // ---------- 反馈：冲击、火花、爆炸、数字、连杀 ----------
@@ -1250,7 +1251,7 @@ const Game = (() => {
     }
     sparks(hx, hy, a, 0.65, crit ? 7 : 3, crit ? 420 : 300, crit ? COL.hot : COL[pal], crit ? 12 : 8);
     text(e.x, e.y - e.r, Math.round(dmg) + (crit ? '!' : ''), crit);
-    if (crit) { S.shake = Math.max(S.shake, 1.5); Sfx.play('crit'); } else Sfx.play('hit');
+    if (crit) { S.shake = Math.max(S.shake, 1.5); Sfx.play('crit', 0, panAt(e.x)); } else Sfx.play('hit', 0, panAt(e.x));
     if (e.hp <= 0) kill(e);
   }
 
@@ -1269,7 +1270,7 @@ const Game = (() => {
       if (--h.ai.pylons <= 0 && h.shield) bossShieldBreak(h);
     }
     impulse(e.x, e.y, [8, 22, 45, 140][tier], [56, 110, 200, 600][tier]);
-    Sfx.play(['kill', 'boom', 'bigkill', 'bigkill'][tier]);
+    Sfx.play(['kill', 'boom', 'bigkill', 'bigkill'][tier], 0, panAt(e.x));
     if (isBoss) { bossDown(e); return; }
     chargeFever(e.elite || supply ? CONFIG.fever.elite : 1);
     countBurst();
@@ -1347,7 +1348,7 @@ const Game = (() => {
     S.rings.push({ x: b.x, y: b.y, r: 6, max: b.radius, dmg: 0, knock: 0, id: ++uid, dur: 0.16, t: 0, col: PCOL.gold, soft: true });
     impulse(b.x, b.y, 14, 120);
     S.shake = Math.min(8, S.shake + 0.8);
-    Sfx.play('boom');
+    Sfx.play('boom', 0, panAt(b.x));
   }
 
   // 狂热：击杀攒能量，攒满后一段时间射速、伤害、移速一起涨，背景跟着鼓点跳
@@ -1726,7 +1727,7 @@ const Game = (() => {
     glint(x, y, radius * 1.5, 0.16, fire ? 'gold' : 'me');
     if (fire) { fireball(x, y, radius * 2.2, 0.34); shards(x, y, PCOL.gold, 8, 280); sparks(x, y, 0, Math.PI, 6, 380, PCOL.gold, 12); chunks(x, y, 3, 160, 'gold', 3); }
     impulse(x, y, 12, radius * 2);
-    Sfx.play('blast');
+    Sfx.play('blast', 0, panAt(x));
   }
 
   // 引力弹：先把周围敌人往中心吸 0.45 秒，再一起炸开
@@ -1795,7 +1796,7 @@ const Game = (() => {
         shards(h.x, h.y, COL.void, 30, 420);
         S.rings.push({ x: h.x, y: h.y, r: 20, max: H.radius * 1.1, dmg: 0, knock: 0, id: ++uid, dur: 0.4, t: 0, col: COL.void, soft: true });
         S.shake += 4;
-        Sfx.play('boom');
+        Sfx.play('boom', 0, panAt(h.x));
       }
     }
     sweep(S.holes);
@@ -1832,7 +1833,7 @@ const Game = (() => {
       S.decals.push({ x: m.x, y: m.y, r: M.radius * rand(0.8, 0.95), t: 0, life: M.crater, rot: Math.random() * TAU, v: (Math.random() * 3) | 0, dead: false });
       impulse(m.x, m.y, 26, 160);
       S.shake += 1.5;
-      Sfx.play('boom');
+      Sfx.play('boom', 0, panAt(m.x));
     }
     sweep(S.meteors);
   }
@@ -1896,7 +1897,7 @@ const Game = (() => {
       sparks(s.x, s.y, 0, Math.PI, 14, 380, COL.hot, 12);
       impulse(s.x, s.y, 40, 220);
       S.shake += 3;
-      Sfx.play('boom');
+      Sfx.play('boom', 0, panAt(s.x));
     }
     sweep(S.strikes);
   }
@@ -2169,7 +2170,7 @@ const Game = (() => {
       explosion(b.x, b.y, b.r, b.pal, b.tier);
       impulse(b.x, b.y, 20, 140);
       S.shake += 2;
-      Sfx.play('boom');
+      Sfx.play('boom', 0, panAt(b.x));
     }
     for (const ring of S.rings) {
       ring.t += dt;
